@@ -1,9 +1,14 @@
 <script>
   import { generatePassword } from '$lib/password-generator.ts';
+  import { deriveKey, encryptData } from '$lib/vault.ts';
+  import { vaultStore } from '$lib/store/vault-store.svelte.ts';
 
   let { vault = {password: ''}, title = 'New Vault', isOpen = $bindable() } = $props();
 
   let vaultForm = $state({
+    name: '',
+    username: '',
+    totp: '',
     password: '',
     length: 14,
     passwordOptions: {
@@ -12,6 +17,10 @@
       numbers: true,
       specialChars: true,
     }
+  });
+
+  let isFormValid = $derived.by(() => {
+    return vaultForm.password.trim().length > 0 && Object.keys(vaultForm.passwordOptions).some(key => vaultForm.passwordOptions[key]);
   });
 
   function closeModal() {
@@ -32,6 +41,33 @@
       alert(err.message);
     }
   }
+
+  function _addVault(vault) {
+    try {
+      vaultStore.add(vault);
+      closeModal();
+    } catch (err) {
+      console.log(err)
+      alert('Error while creating the vault! Try again later');
+    }
+  }
+
+  async function createVault() {
+    const masterKey = localStorage.getItem('master_key') || 'password';
+    const { salt, iv, derivedKey } = await deriveKey(masterKey);
+    const encrypter = encryptData.bind(null, { iv, derivedKey });
+
+    const encryptedVault = {
+      name: vaultForm.name,
+      username: await encrypter(vaultForm.username),
+      totp: vaultForm.totp,
+      password: await encrypter(vaultForm.password),
+      iv: btoa(String.fromCharCode(...iv)),
+      salt: btoa(String.fromCharCode(...salt))
+    };
+
+    _addVault(encryptedVault);
+  }
 </script>
 
 {#if isOpen}
@@ -47,13 +83,13 @@
       </div>
 
       <div class="modal-content pb-4">
-        <form class="space-y-3" action="#" method="POST">
+        <form class="space-y-3" onsubmit={createVault}>
           <div>
             <div class="flex items-center justify-between">
               <label for="name" class="block text-sm/6 font-medium text-gray-900">Name</label>
             </div>
             <div class="mt-2">
-              <input id="name" name="name" type="text" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6">
+              <input id="name" name="name" bind:value={vaultForm.name} type="text" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6">
               </div>
             </div>
 
@@ -62,7 +98,7 @@
               <label for="username" class="block text-sm/6 font-medium text-gray-900">Username</label>
             </div>
             <div class="mt-2">
-              <input id="username" name="username" type="text" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6">
+              <input id="username" name="username" bind:value={vaultForm.username} type="text" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6">
               </div>
             </div>
 
@@ -114,7 +150,7 @@
                 <label for="totp" class="block text-sm/6 font-medium text-gray-900">Authenticator key (TOTP)</label>
               </div>
               <div class="mt-2">
-                <input id="totp" name="totp" type="text" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6">
+                <input id="totp" bind:value={vaultForm.totp} name="totp" type="text" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6">
               </div>
             </div>
           </form>
@@ -122,8 +158,8 @@
 
       <div class="modal-footer">
         <div class="flex gap-x-2">
-          <button type="submit" class="flex justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Save</button>
-          <button class="flex justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-sm hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Cancel</button>
+          <button onclick={createVault} disabled={!isFormValid} type="submit" class="flex cursor-pointer justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Save</button>
+          <button onclick={closeModal} class="flex cursor-pointer justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-sm hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Cancel</button>
         </div>
       </div>
     </div>
@@ -159,5 +195,9 @@
         overflow-y: auto;
       }
     }
+  }
+
+  button[disabled] {
+    background-color: #ccc !important;
   }
 </style>

@@ -1,11 +1,21 @@
 <script>
     import Modal from '$lib/common/Modal.svelte';
+    
 
     let isModalOpen = $state(false);
+    let v = $state([]);
+
+    $effect(() => {
+        const encodedVaults = localStorage.vaults || '[]';
+
+        v = JSON.parse(encodedVaults);
+    });
 
     function openModal() {
         isModalOpen = true;
     }
+
+    function copyToClipboard(password) {}
 </script>
 
 <div class="overflow-x-auto">
@@ -27,16 +37,18 @@
             </tr>
         </thead>
         <tbody>
-            <tr class="border-t">
-                <td class="px-4 py-2">John Doe</td>
-                <td class="px-4 py-2">john@gmail.com</td>
-                <td class="px-4 py-2">
-                    <div class="flex items-center gap-x-1">
-                        <span> *** </span>
-                        <button type="submit" class="outline rounded-md px-1.5 py-1 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Copy</button>
-                    </div>
-                </td>
-            </tr>
+            {#each v as vault, index}
+                <tr class="border-t">
+                    <td class="px-4 py-2">{vault.name}</td>
+                    <td class="px-4 py-2">{vault.username}</td>
+                    <td class="px-4 py-2">
+                        <div class="flex items-center gap-x-1">
+                            <span> *** </span>
+                            <button onclick={() => copyToClipboard(v.password)} class="outline rounded-md px-1.5 py-1 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Copy</button>
+                        </div>
+                    </td>
+                </tr>
+            {/each}
         </tbody>
     </table>
 </div>

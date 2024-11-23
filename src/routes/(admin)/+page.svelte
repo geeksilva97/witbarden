@@ -1,10 +1,17 @@
 <script>
     import Modal from '$lib/common/Modal.svelte';
+
+    let isModalOpen = $state(false);
+
+    function openModal() {
+        isModalOpen = true;
+    }
 </script>
 
 <div class="overflow-x-auto">
     <div class="w-full flex justify-end">
         <button
+            onclick={openModal}
             data-modal-target="static-modal" data-modal-toggle="static-modal"
             type="submit" class="flex justify-center rounded-md bg-indigo-600 mb-2 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
             New Vault
@@ -34,4 +41,4 @@
     </table>
 </div>
 
-<Modal />
+<Modal bind:isOpen={isModalOpen} />
